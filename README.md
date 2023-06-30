@@ -1,81 +1,148 @@
-# EXP-02-INTERFACING-DIGITAL-INPUT-SENSOR-WITH-ARDUINO-PUSH-BUTTON
+#Importing libraries
+from sklearn.datasets import load_boston
+import pandas as pd
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
+import statsmodels.api as sm
+%matplotlib inline
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.feature_selection import RFE
+from sklearn.linear_model import RidgeCV, LassoCV, Ridge, Lasso
 
-AIM:  To interface a digital input (push button) and blink and LED upon activation.
-COMPONENTS REQUIRED:
-1.	1 KΩ Resistor 
-2.	Arduino Uno 
-3.	Bread board 
-4.	USB Interfacing cable 
-5.	Jumper wires 
-6.	LED of choice 
-THEORY :
-Arduino UNO
- 	  The Uno is a microcontroller board based on the ATmega328P. It has 14 digital input/output pins (of which 6 can be used as PWM outputs), 6 analog inputs, a 16 MHz quartz crystal, a USB connection, a power jack, an ICSP header and a reset button. It contains everything needed to support the microcontroller; simply connect it to a computer with a USB cable or power it with a AC-to-DC adapter or battery to get started.
-	Technical specifications of Arduino UNO :
-Microcontroller	ATmega168/328
-Microcontroller	ATmega168/328
-Operating Voltage	5V
-Input Voltage (recommended)	7-12V
-Input Voltage (limits)	6-20V
-Digital I/O Pins	14 (of which 6 provide PWM output)
-Analog Input Pins	6
-DC Current per I/O Pin	40 mA
-DC Current for 3.3V Pin	50 mA
-Flash Memory	16 KB (ATmega168) or 32 KB (ATmega328) of which 2 KB used by boot loader
-SRAM	1 KB (ATmega168) or 2 KB (ATmega328)
-EEPROM	512 bytes (ATmega168) or 1 KB (ATmega328)
-Clock Speed	16 MHz
-PIN DIAGRAM FOR ATMEGA 328
- 
-![image](https://user-images.githubusercontent.com/36288975/163530394-115baee4-7ed1-49fe-9cce-d7b625e11e85.png)
+from sklearn.datasets import load_boston
+boston = load_boston()
 
-FIGURE-01
-![image](https://user-images.githubusercontent.com/36288975/163530431-4d390e98-0942-42d8-95b8-f57d348e6ad8.png)
+print(boston['DESCR'])
 
+import pandas as pd
+df = pd.DataFrame(boston['data'] )
+df.head()
 
+df.columns = boston['feature_names']
+df.head()
 
-FIGURE-02
-PROCEDURE 
- Open tinker cad account 
-1.	Select Arduino uno , bread board , digital input and digital output 
-2.	Connect the circuit as given in the figure 
-3.	Develop the program and compile it for any errors 
-4.	 .Execute the program 
-5.	Check the simulation 
+df['PRICE']= boston['target']
+df.head()
 
+df.info()
 
+plt.figure(figsize=(10, 8))
+sns.distplot(df['PRICE'], rug=True)
+plt.show()
 
+#FILTER METHODS
 
+X=df.drop("PRICE",1)
+y=df["PRICE"]
 
+from sklearn.feature_selection import SelectKBest, chi2
+X, y = load_boston(return_X_y=True)
+X.shape
 
+#1.Variance Threshold
+from sklearn.feature_selection import VarianceThreshold
+selector = VarianceThreshold()
+selector.fit_transform(X)
 
+#2.Information gain/Mutual Information
+from sklearn.feature_selection import mutual_info_regression
+mi = mutual_info_regression(X, y);
+mi = pd.Series(mi)
+mi.sort_values(ascending=False)
+mi.sort_values(ascending=False).plot.bar(figsize=(10, 4))
 
-CIRCUIT DIAGRAM 
+#3.SelectKBest Model
+from sklearn.feature_selection import f_classif
+from sklearn.feature_selection import SelectKBest,SelectPercentile
+skb = SelectKBest(score_func=f_classif, k=2) 
+X_data_new = skb.fit_transform(X, y)
+print('Number of features before feature selection: {}'.format(X.shape[1]))
+print('Number of features after feature selection: {}'.format(X_data_new.shape[1]))
 
+#4.Correlation Coefficient
+cor=df.corr()
+sns.heatmap(cor,annot=True)
 
+#5.Mean Absolute Difference
+mad=np.sum(np.abs(X-np.mean(X,axis=0)),axis=0)/X.shape[0]
+plt.bar(np.arange(X.shape[1]),mad,color='teal')
 
+#Processing data into array type.
+from sklearn import preprocessing
+lab = preprocessing.LabelEncoder()
+y_transformed = lab.fit_transform(y)
+print(y_transformed)
 
+#6.Chi Square Test
+X = X.astype(int)
+chi2_selector = SelectKBest(chi2, k=2)
+X_kbest = chi2_selector.fit_transform(X, y_transformed)
+print('Original number of features:', X.shape[1])
+print('Reduced number of features:', X_kbest.shape[1])
 
-![image](https://user-images.githubusercontent.com/36288975/163530437-87a0afbd-b3c9-44ad-b907-5de63486fb9d.png)
+#7.SelectPercentile method
+X_new = SelectPercentile(chi2, percentile=10).fit_transform(X, y_transformed)
+X_new.shape
 
+#WRAPPER METHOD
 
+#1.Forward feature selection
 
-FIGURE -03
+from mlxtend.feature_selection import SequentialFeatureSelector as SFS
+from sklearn.linear_model import LinearRegression
+sfs = SFS(LinearRegression(),
+          k_features=10,
+          forward=True,
+          floating=False,
+          scoring = 'r2',
+          cv = 0)
+sfs.fit(X, y)
+sfs.k_feature_names_
 
+#2.Backward feature elimination
 
+sbs = SFS(LinearRegression(),
+         k_features=10,
+         forward=False,
+         floating=False,
+         cv=0)
+sbs.fit(X, y)
+sbs.k_feature_names_
 
+#3.Bi-directional elimination
 
+sffs = SFS(LinearRegression(),
+         k_features=(3,7),
+         forward=True,
+         floating=True,
+         cv=0)
+sffs.fit(X, y)
+sffs.k_feature_names_
 
-PROGRAM 
- 
- 
- 
- 
- 
+#4.Recursive Feature Selection
 
+from sklearn.feature_selection import RFE
+lr=LinearRegression()
+rfe=RFE(lr,n_features_to_select=7)
+rfe.fit(X, y)
+print(X.shape, y.shape)
+rfe.transform(X)
+rfe.get_params(deep=True)
+rfe.support_
+rfe.ranking_
 
+#EMBEDDED METHOD
 
-Output of the simulation :
+#1.Random Forest Importance
 
-[My image](username.github.com/repository/img/image.jpg)
+from sklearn.ensemble import RandomForestClassifier
+model = RandomForestClassifier().fit(X,y_transformed)
+importances=model.feature_importances_
 
+final_df=pd.DataFrame({"Features":pd.DataFrame(X).columns,"Importances":importances})
+final_df.set_index("Importances")
+final_df=final_df.sort_values("Importances")
+final_df.plot.bar(color="teal")
