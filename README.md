@@ -1,3 +1,4 @@
+```
 #Importing libraries
 from sklearn.datasets import load_boston
 import pandas as pd
@@ -146,3 +147,4 @@ final_df=pd.DataFrame({"Features":pd.DataFrame(X).columns,"Importances":importan
 final_df.set_index("Importances")
 final_df=final_df.sort_values("Importances")
 final_df.plot.bar(color="teal")
+```
